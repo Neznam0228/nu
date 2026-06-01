@@ -1,0 +1,411 @@
+-- =====================================================
+-- Скрипт создания базы данных variant26
+-- Для SQL Server 2017/2019 (SSMS 18)
+-- Таблицы создаются с нуля, данные отсутствуют
+-- Все связи и ограничения настроены
+-- =====================================================
+
+USE master;
+GO
+
+-- Удаляем базу данных, если она существует
+IF EXISTS (SELECT 1 FROM sys.databases WHERE name = 'variant26')
+BEGIN
+    ALTER DATABASE variant26 SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE variant26;
+END
+GO
+
+-- Создаем базу данных
+CREATE DATABASE [variant26]
+ON PRIMARY 
+(NAME = N'variant26', 
+ FILENAME = N'C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\variant26.mdf')
+LOG ON 
+(NAME = N'variant26_log', 
+ FILENAME = N'C:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\variant26_log.ldf')
+GO
+
+-- Переключаемся на новую базу данных
+USE variant26;
+GO
+
+-- Устанавливаем уровень совместимости (для SQL Server 2017/2019)
+ALTER DATABASE variant26 SET COMPATIBILITY_LEVEL = 140;
+GO
+
+-- =====================================================
+-- Создание таблиц
+-- =====================================================
+
+-- 1. Category
+CREATE TABLE Category (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(500) NULL
+);
+GO
+
+-- 2. Role
+CREATE TABLE [Role] (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(50) NOT NULL
+);
+GO
+
+-- 3. Unit
+CREATE TABLE Unit (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(50) NOT NULL,
+    ShortName NVARCHAR(20) NULL
+);
+GO
+
+-- 4. Provider
+CREATE TABLE Provider (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(200) NOT NULL,
+    Phone NVARCHAR(20) NULL,
+    Email NVARCHAR(100) NULL,
+    Address NVARCHAR(500) NULL
+);
+GO
+
+-- 5. Producer
+CREATE TABLE Producer (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(200) NOT NULL,
+    Country NVARCHAR(100) NULL,
+    ContactPhone NVARCHAR(20) NULL
+);
+GO
+
+-- 6. OrderStatus
+CREATE TABLE OrderStatus (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(50) NOT NULL,
+    Description NVARCHAR(200) NULL
+);
+GO
+
+-- 7. PickUpPoint
+CREATE TABLE PickUpPoint (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Address NVARCHAR(500) NOT NULL,
+    Phone NVARCHAR(20) NULL,
+    WorkHours NVARCHAR(100) NULL
+);
+GO
+
+-- 8. User
+CREATE TABLE [User] (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Surname NVARCHAR(50) NOT NULL,
+    Name NVARCHAR(50) NOT NULL,
+    Patronymic NVARCHAR(50) NULL,
+    Phone NVARCHAR(20) NULL,
+    Email NVARCHAR(100) NOT NULL,
+    Username NVARCHAR(50) NOT NULL,
+    PasswordHash NVARCHAR(255) NOT NULL,
+    RoleId INT NOT NULL,
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- 9. Order
+CREATE TABLE [Order] (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    OrderDate DATETIME NOT NULL DEFAULT GETDATE(),
+    DeliveryDate DATETIME NULL,
+    StatusId INT NOT NULL,
+    PickUpPointId INT NOT NULL,
+    UserId INT NOT NULL,
+    TotalAmount DECIMAL(18,2) NOT NULL DEFAULT 0
+);
+GO
+
+-- 10. Product
+CREATE TABLE Product (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(200) NOT NULL,
+    Description NVARCHAR(1000) NULL,
+    Price DECIMAL(18,2) NOT NULL,
+    Quantity INT NOT NULL DEFAULT 0,
+    CategoryId INT NOT NULL,
+    ProducerId INT NOT NULL,
+    ProviderId INT NOT NULL,
+    UnitId INT NOT NULL,
+    Article NVARCHAR(50) NULL
+);
+GO
+
+-- 11. ProductInOrder
+CREATE TABLE ProductInOrder (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    OrderId INT NOT NULL,
+    ProductId INT NOT NULL,
+    Quantity INT NOT NULL,
+    Price DECIMAL(18,2) NOT NULL
+);
+GO
+
+-- 12. paintings
+CREATE TABLE paintings (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Title NVARCHAR(200) NOT NULL,
+    Description NVARCHAR(1000) NULL,
+    ImageUrl NVARCHAR(500) NULL,
+    PerceptualHash NVARCHAR(255) NULL,
+    UserId INT NOT NULL,
+    Status INT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- 13. jobs
+CREATE TABLE jobs (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Queue NVARCHAR(100) NOT NULL,
+    Payload NVARCHAR(MAX) NOT NULL,
+    Attempts INT NOT NULL DEFAULT 0,
+    ReservedAt INT NULL,
+    AvailableAt INT NOT NULL,
+    CreatedAt INT NOT NULL
+);
+GO
+
+-- 14. messages
+CREATE TABLE messages (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    UserId INT NOT NULL,
+    Text NVARCHAR(MAX) NOT NULL,
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- 15. notifications
+CREATE TABLE notifications (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Type NVARCHAR(100) NOT NULL,
+    NotifiableType NVARCHAR(100) NOT NULL,
+    NotifiableId INT NOT NULL,
+    Data NVARCHAR(MAX) NOT NULL,
+    ReadAt DATETIME NULL,
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- 16. migrations
+CREATE TABLE migrations (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Migration NVARCHAR(255) NOT NULL,
+    Batch INT NOT NULL
+);
+GO
+
+-- 17. users
+CREATE TABLE users (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Email NVARCHAR(100) NOT NULL,
+    Password NVARCHAR(255) NOT NULL,
+    CreatedAt DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- =====================================================
+-- Создание ограничений UNIQUE
+-- =====================================================
+
+-- User таблица
+ALTER TABLE [User] ADD CONSTRAINT UQ_User_Email UNIQUE (Email);
+ALTER TABLE [User] ADD CONSTRAINT UQ_User_Username UNIQUE (Username);
+GO
+
+-- users таблица
+ALTER TABLE users ADD CONSTRAINT UQ_users_Email UNIQUE (Email);
+GO
+
+-- =====================================================
+-- Создание ограничений CHECK
+-- =====================================================
+
+-- ProductInOrder
+ALTER TABLE ProductInOrder ADD CONSTRAINT CK_ProductInOrder_Quantity CHECK (Quantity > 0);
+GO
+
+-- paintings
+ALTER TABLE paintings ADD CONSTRAINT CK_paintings_status CHECK (Status IN (0, 1, 2));
+GO
+
+-- =====================================================
+-- Создание ограничений DEFAULT
+-- =====================================================
+
+ALTER TABLE [User] ADD CONSTRAINT DF_User_CreatedAt DEFAULT GETDATE() FOR CreatedAt;
+ALTER TABLE paintings ADD CONSTRAINT DF_paintings_CreatedAt DEFAULT GETDATE() FOR CreatedAt;
+ALTER TABLE messages ADD CONSTRAINT DF_messages_CreatedAt DEFAULT GETDATE() FOR CreatedAt;
+ALTER TABLE notifications ADD CONSTRAINT DF_notifications_CreatedAt DEFAULT GETDATE() FOR CreatedAt;
+ALTER TABLE users ADD CONSTRAINT DF_users_CreatedAt DEFAULT GETDATE() FOR CreatedAt;
+GO
+
+-- =====================================================
+-- Создание внешних ключей (FOREIGN KEY)
+-- =====================================================
+
+-- User -> Role
+ALTER TABLE [User] ADD CONSTRAINT FK_User_Role 
+    FOREIGN KEY (RoleId) REFERENCES [Role](Id);
+GO
+
+-- Order -> OrderStatus
+ALTER TABLE [Order] ADD CONSTRAINT FK_Order_OrderStatus 
+    FOREIGN KEY (StatusId) REFERENCES OrderStatus(Id);
+GO
+
+-- Order -> PickUpPoint
+ALTER TABLE [Order] ADD CONSTRAINT FK_Order_PickUpPoint 
+    FOREIGN KEY (PickUpPointId) REFERENCES PickUpPoint(Id);
+GO
+
+-- Order -> User
+ALTER TABLE [Order] ADD CONSTRAINT FK_Order_User 
+    FOREIGN KEY (UserId) REFERENCES [User](Id);
+GO
+
+-- Product -> Category
+ALTER TABLE Product ADD CONSTRAINT FK_Product_Category 
+    FOREIGN KEY (CategoryId) REFERENCES Category(Id);
+GO
+
+-- Product -> Producer
+ALTER TABLE Product ADD CONSTRAINT FK_Product_Producer 
+    FOREIGN KEY (ProducerId) REFERENCES Producer(Id);
+GO
+
+-- Product -> Provider
+ALTER TABLE Product ADD CONSTRAINT FK_Product_Provider 
+    FOREIGN KEY (ProviderId) REFERENCES Provider(Id);
+GO
+
+-- Product -> Unit
+ALTER TABLE Product ADD CONSTRAINT FK_Product_Unit 
+    FOREIGN KEY (UnitId) REFERENCES Unit(Id);
+GO
+
+-- ProductInOrder -> Order
+ALTER TABLE ProductInOrder ADD CONSTRAINT FK_ProductInOrder_Order 
+    FOREIGN KEY (OrderId) REFERENCES [Order](Id) ON DELETE CASCADE;
+GO
+
+-- ProductInOrder -> Product
+ALTER TABLE ProductInOrder ADD CONSTRAINT FK_ProductInOrder_Product 
+    FOREIGN KEY (ProductId) REFERENCES Product(Id);
+GO
+
+-- messages -> User
+ALTER TABLE messages ADD CONSTRAINT FK_messages_User 
+    FOREIGN KEY (UserId) REFERENCES [User](Id);
+GO
+
+-- paintings -> User
+ALTER TABLE paintings ADD CONSTRAINT FK_paintings_User 
+    FOREIGN KEY (UserId) REFERENCES [User](Id);
+GO
+
+-- =====================================================
+-- Создание индексов
+-- =====================================================
+
+-- Индексы для jobs
+CREATE INDEX idx_jobs_queue ON jobs(Queue);
+GO
+
+-- Индексы для messages
+CREATE INDEX idx_messages_user_id ON messages(UserId);
+GO
+
+-- Индексы для notifications
+CREATE INDEX idx_notifications_notifiable ON notifications(NotifiableType, NotifiableId);
+GO
+
+-- Индексы для paintings
+CREATE INDEX idx_paintings_user_id ON paintings(UserId);
+CREATE INDEX idx_paintings_perceptual_hash ON paintings(PerceptualHash);
+GO
+
+-- Индексы для Product
+CREATE INDEX IX_Product_Category ON Product(CategoryId);
+CREATE INDEX IX_Product_Producer ON Product(ProducerId);
+CREATE INDEX IX_Product_Provider ON Product(ProviderId);
+CREATE INDEX IX_Product_Unit ON Product(UnitId);
+GO
+
+-- Индексы для Order
+CREATE INDEX IX_Order_User ON [Order](UserId);
+CREATE INDEX IX_Order_Status ON [Order](StatusId);
+CREATE INDEX IX_Order_Date ON [Order](OrderDate);
+GO
+
+-- =====================================================
+-- Проверка создания всех таблиц
+-- =====================================================
+
+SELECT 
+    t.name AS TableName,
+    CASE 
+        WHEN t.name IN ('Category', 'Role', 'Unit', 'Provider', 'Producer', 'OrderStatus', 
+                        'PickUpPoint', 'User', 'Order', 'Product', 'ProductInOrder', 
+                        'paintings', 'jobs', 'messages', 'notifications', 'migrations', 'users')
+        THEN 'Created'
+        ELSE 'Missing'
+    END AS Status
+FROM sys.tables t
+WHERE t.name IN ('Category', 'Role', 'Unit', 'Provider', 'Producer', 'OrderStatus', 
+                 'PickUpPoint', 'User', 'Order', 'Product', 'ProductInOrder', 
+                 'paintings', 'jobs', 'messages', 'notifications', 'migrations', 'users')
+ORDER BY t.name;
+GO
+
+-- =====================================================
+-- Вывод информации об успешном создании
+-- =====================================================
+PRINT '==========================================';
+PRINT 'База данных variant26 успешно создана!';
+PRINT 'Все таблицы созданы, данные отсутствуют.';
+PRINT '==========================================';
+PRINT 'Список созданных таблиц:';
+PRINT '1. Category';
+PRINT '2. Role';
+PRINT '3. Unit';
+PRINT '4. Provider';
+PRINT '5. Producer';
+PRINT '6. OrderStatus';
+PRINT '7. PickUpPoint';
+PRINT '8. User';
+PRINT '9. Order';
+PRINT '10. Product';
+PRINT '11. ProductInOrder';
+PRINT '12. paintings';
+PRINT '13. jobs';
+PRINT '14. messages';
+PRINT '15. notifications';
+PRINT '16. migrations';
+PRINT '17. users';
+PRINT '==========================================';
+PRINT '';
+PRINT 'Все связи (FOREIGN KEY) настроены:';
+PRINT '- User.RoleId -> Role.Id';
+PRINT '- Order.StatusId -> OrderStatus.Id';
+PRINT '- Order.PickUpPointId -> PickUpPoint.Id';
+PRINT '- Order.UserId -> User.Id';
+PRINT '- Product.CategoryId -> Category.Id';
+PRINT '- Product.ProducerId -> Producer.Id';
+PRINT '- Product.ProviderId -> Provider.Id';
+PRINT '- Product.UnitId -> Unit.Id';
+PRINT '- ProductInOrder.OrderId -> Order.Id';
+PRINT '- ProductInOrder.ProductId -> Product.Id';
+PRINT '- messages.UserId -> User.Id';
+PRINT '- paintings.UserId -> User.Id';
+PRINT '==========================================';
+GO
